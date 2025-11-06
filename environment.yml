@@ -1,13 +1,15 @@
 name: prime-lm-final
 channels:
   - pytorch
+  - nvidia   # Add the nvidia channel for CUDA dependencies
   - conda-forge
   - defaults
 dependencies:
   - python=3.8
   - pytorch::pytorch=1.12.1
   - pytorch::torchvision
-  - torchtext=0.6.0   # This is the critical line we were missing
+  - torchtext=0.6.0
+  - pytorch-cuda=11.3   # This is the CRITICAL line for GPU support
   - pip
   - pip:
     - unidecode
