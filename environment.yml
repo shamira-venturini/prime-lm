@@ -1,0 +1,18 @@
+name: prime-lm-final
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pytorch::pytorch=1.12.1
+  - pytorch::torchvision
+  - torchtext=0.6.0   # This is the critical line we were missing
+  - pip
+  - pip:
+    - unidecode
+    - dill
+    - tqdm
+    - transformers==4.12.5
+    - numpy==1.21.0
+    - diagnnose

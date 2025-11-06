@@ -1,3 +1,5 @@
+# MODIFIED scripts/init_corpora.py WITH DEBUG STATEMENTS
+
 from glob import glob
 import os
 
@@ -8,11 +10,24 @@ def capital(s):
 
 def init_corpora(data_dir, tokenizer, add_eos=False):
     """ Processes the corpora in a way that is compatible with the pipeline and the current tokenizer. """
-    primed_corpora = {}
+    # --- START OF DEBUG SECTION ---
+    print("\n" + "="*20 + " Inside the REAL init_corpora " + "="*20)
+    abs_data_dir = os.path.abspath(data_dir)
+    print(f"[DEBUG init] Received data_dir: '{data_dir}'")
+    print(f"[DEBUG init] Absolute path is: '{abs_data_dir}'")
+    print(f"[DEBUG init] Does this directory exist? {os.path.isdir(abs_data_dir)}")
+    # --- END OF DEBUG SECTION ---
 
+    primed_corpora = {}
     corpus_attributions = {}
 
     glob_str = os.path.join(data_dir, "*.csv")
+    # --- START OF DEBUG SECTION ---
+    print(f"[DEBUG init] Constructed glob search pattern: '{glob_str}'")
+    found_files = glob(glob_str)
+    print(f"[DEBUG init] glob.glob found {len(found_files)} files: {found_files}")
+    # --- END OF DEBUG SECTION ---
+
     sep = ","
     bos = tokenizer.bos_token or tokenizer.cls_token
     skip_first_line = True
@@ -33,7 +48,8 @@ def init_corpora(data_dir, tokenizer, add_eos=False):
     if not os.path.isdir("new_corpora"):
         os.mkdir("new_corpora")
 
-    for corpus_path in glob(glob_str):
+    for corpus_path in found_files: # Using our debug variable here
+        print(f"[DEBUG init] Processing file: {corpus_path}") # New breadcrumb
         with open(corpus_path) as f:
             lines = [l.strip().split(sep) for l in f]
 
@@ -45,62 +61,27 @@ def init_corpora(data_dir, tokenizer, add_eos=False):
         ]
 
         for line in lines[int(skip_first_line) :]:
-            # The final replace here hard codes captialization in the second sentence for recency & cumulativity
-            # NB ==> Make sure that if the template changes this is updated accordingly here.
-            prime_x: str = capital(
-                line[0]
-                .strip()
-                .replace(" .", ".")
-                .replace(". the", ". The")
-                .replace(". a", ". A")
-            )
-            prime_y: str = capital(
-                line[1]
-                .strip()
-                .replace(" .", ".")
-                .replace(". the", ". The")
-                .replace(". a", ". A")
-            )
-
+            prime_x: str = capital(line[0].strip().replace(" .", ".").replace(". the", ". The").replace(". a", ". A"))
+            prime_y: str = capital(line[1].strip().replace(" .", ".").replace(". the", ". The").replace(". a", ". A"))
             prime_x = bos + prime_x + sen_sep
             prime_y = bos + prime_y + sen_sep
-
             x: str = capital(line[2].strip().replace(" .", "."))
             y: str = capital(line[3].strip().replace(" .", "."))
-
             if add_eos:
                 x += tokenizer.eos_token
                 y += tokenizer.eos_token
-
             new_line = []
-            if "prime_x" in COLUMNS:
-                new_line.append(prime_x)
-            if "prime_y" in COLUMNS:
-                new_line.append(prime_y)
-            if "x" in COLUMNS:
-                new_line.append(bos + x)
-            if "y" in COLUMNS:
-                new_line.append(bos + y)
-            if "x_px" in COLUMNS:
-                new_line.append(" ".join((prime_x, x)))
-            if "x_py" in COLUMNS:
-                new_line.append(" ".join((prime_y, x)))
-            if "y_px" in COLUMNS:
-                new_line.append(" ".join((prime_x, y)))
-            if "y_py" in COLUMNS:
-                new_line.append(" ".join((prime_y, y)))
-
+            if "prime_x" in COLUMNS: new_line.append(prime_x)
+            if "prime_y" in COLUMNS: new_line.append(prime_y)
+            if "x" in COLUMNS: new_line.append(bos + x)
+            if "y" in COLUMNS: new_line.append(bos + y)
+            if "x_px" in COLUMNS: new_line.append(" ".join((prime_x, x)))
+            if "x_py" in COLUMNS: new_line.append(" ".join((prime_y, x)))
+            if "y_px" in COLUMNS: new_line.append(" ".join((prime_x, y)))
+            if "y_py" in COLUMNS: new_line.append(" ".join((prime_y, y)))
             prime_x_start_idx = len(tokenizer.tokenize(prime_x))
             prime_y_start_idx = len(tokenizer.tokenize(prime_y))
-
-            new_line.extend(
-                [
-                    "1",
-                    str(prime_x_start_idx),
-                    str(prime_y_start_idx),
-                ]
-            )
-
+            new_line.extend(["1", str(prime_x_start_idx), str(prime_y_start_idx),])
             new_lines.append(",".join(new_line))
 
         corpus_name = corpus_path.split("/")[-1].split(".")[0]
@@ -112,4 +93,5 @@ def init_corpora(data_dir, tokenizer, add_eos=False):
 
         primed_corpora[corpus_name] = new_corpus_path
 
+    print(f"[DEBUG init] Returning {len(primed_corpora)} processed corpora.") # New breadcrumb
     return primed_corpora, COLUMNS

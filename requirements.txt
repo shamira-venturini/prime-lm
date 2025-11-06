@@ -2,6 +2,6 @@ unidecode
 dill
 tqdm
 transformers==4.12.5
-torch==1.6.0
+#torch==1.6.0
 numpy==1.19.4
-torchtext==0.6.0
+#torchtext==0.6.0
