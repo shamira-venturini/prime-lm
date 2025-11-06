@@ -1,6 +1,4 @@
-# scripts/generate_data.py
-# This script's ONLY job is to run the model and save the raw materials:
-# activations, tokens, token_ids, and the target start index.
+# scripts/pipeline.py (The Data Generation Script)
 
 import argparse
 import gc
@@ -17,16 +15,12 @@ from init_corpora import init_corpora
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-
 def save_raw_materials(activations, item, item_idx, save_dir, corpus_name, column_name):
-    """ Saves all necessary raw materials for a single sentence to a .pt file. """
     if isinstance(activations, torch.Tensor):
         activations = {(-1, 'hx'): activations}
 
     tokens = getattr(item, column_name)
     token_ids = tokenizer.convert_tokens_to_ids(tokens)
-
-    # Get the start index of the target sentence from the corpus item
     start_idx = getattr(item, COLUMNS[column_name])
 
     data_to_save = {
@@ -41,9 +35,7 @@ def save_raw_materials(activations, item, item_idx, save_dir, corpus_name, colum
     filename = os.path.join(save_path, f"item_{item_idx}.pt")
     torch.save(data_to_save, filename)
 
-
 def create_activation_reader(corpus, sen_column):
-    """ Configures and runs the diagnnose extractor. """
     if model.is_causal:
         def selection_func(w_idx, item):
             sen_len = len(getattr(item, sen_column))
@@ -60,19 +52,16 @@ def create_activation_reader(corpus, sen_column):
     activation_reader = extractor.extract()
     return activation_reader
 
-
 if __name__ == "__main__":
     start_time = time.time()
-
     arg_parser = argparse.ArgumentParser(description="Generate raw activations and input_ids from a model.")
     arg_parser.add_argument("--model", type=str, required=True)
-    arg_parser.add_argument("--data", type=str, required=True, help="Path to a SINGLE .csv corpus file.")
+    arg_parser.add_argument("--data", type=str, required=True, help="Path to a directory containing .csv files.")
     arg_parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the raw .pt files")
     args = arg_parser.parse_args()
 
     mode = "masked_lm" if "bert" in args.model else "causal_lm"
     model_name = args.model
-
     print(f"--- Starting Data Generation for {model_name} ---")
 
     config_dict = {
@@ -92,7 +81,6 @@ if __name__ == "__main__":
 
     for CORPUS, corpus_path in sorted(list(primed_corpora.items())):
         print(f"[INFO] Starting generation for: {CORPUS}")
-
         config_dict["corpus"] = {
             "path": corpus_path, "header_from_first_line": True, "sen_column": next(iter(COLUMNS)),
             "tokenize_columns": list(COLUMNS.keys()), "convert_numerical": True, "sep": ",",
@@ -101,11 +89,8 @@ if __name__ == "__main__":
 
         for column in tqdm(COLUMNS.keys(), desc=f"Columns for {CORPUS}"):
             activation_reader = create_activation_reader(corpus, column)
-
-            for item_idx, (item, activations_for_item) in enumerate(
-                    tqdm(zip(corpus, activation_reader[:]), desc=f"Processing {column}", total=len(corpus),
-                         leave=False)):
+            for item_idx, (item, activations_for_item) in enumerate(tqdm(zip(corpus, activation_reader[:]), desc=f"Processing {column}", total=len(corpus), leave=False)):
                 save_raw_materials(activations_for_item, item, item_idx, args.output_dir, CORPUS, column)
 
     end_time = time.time()
-    print(f"--- DATA GENERATION FINISHED IN {end_time - start_time:.2f} SECONDS ---")
+    print(f"--- DATA GENERATION FINISHED IN {end_time-start_time:.2f} SECONDS ---")
